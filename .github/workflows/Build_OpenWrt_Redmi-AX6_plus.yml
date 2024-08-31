@@ -11,7 +11,7 @@
 name: Build lede OpenWrt Redmi-AX6 plus
 
 on:
-  repository_dispatch:
+  # repository_dispatch:
   workflow_dispatch:
     inputs:
       ssh:
@@ -22,8 +22,8 @@ on:
   #  branches: 
   #    - master
 
-  schedule:
-    - cron: 12 3 * * 4
+  # schedule:
+  #   - cron: 12 3 * * 4
   
   #watch:
   #  types: [started]
