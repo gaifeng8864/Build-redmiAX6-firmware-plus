@@ -64,6 +64,7 @@ jobs:
         echo -e  "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l) \n"
         echo "硬盘详情："
         df -Th
+        
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -99,8 +100,8 @@ jobs:
         echo "DATE2=$(date "+%Y%m%d%H%M")" >> $GITHUB_ENV
  
     - name: Load custom feeds
-       run: |
-         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+      run: |
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         #chmod +x $DIY_P1_SH
         #cd openwrt
         #$GITHUB_WORKSPACE/$DIY_P1_SH
