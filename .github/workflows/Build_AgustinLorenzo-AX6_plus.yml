@@ -25,7 +25,7 @@ env:
   REPO_URL: https://github.com/AgustinLorenzo/openwrt
   REPO_BRANCH: main_nss
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: config/AX6-AgustinLorenzo-plus.config
+  CONFIG_FILE: config/AX6-AgustinLorenzo-plus(backup).config
   DTS_FILE: ipq8071-ax6.dts
   #DIY_P1_SH: diy-part1.sh
   #DIY_P2_SH: sh/AX6_diy-part2.sh
