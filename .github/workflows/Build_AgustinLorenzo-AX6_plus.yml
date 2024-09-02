@@ -25,7 +25,7 @@ env:
   REPO_URL: https://github.com/gaifeng8864/openwrt-redmiAX6-nss
   REPO_BRANCH: main_nss
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: config/AX6-AgustinLorenzo-plus(backup2).config
+  CONFIG_FILE: config/AX6-AgustinLorenzo-plus.config
   #DTS_FILE: ipq8071-ax6.dts
   #DIY_P1_SH: diy-part1.sh
   #DIY_P2_SH: sh/AX6_diy-part2.sh
@@ -75,7 +75,7 @@ jobs:
         [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
         sudo -E apt update
         sudo -E apt -y install $(curl -fsSL https://is.gd/depends_ubuntu_2204)
-        sudo -E apt-get -qq install libfuse-dev lib32z1-dev libpcre3 libpcre3-dev
+        sudo -E apt-get -qq install libfuse-dev lib32z1-dev libpcre3 libpcre3-dev diffutils util-linux grep libc-dev perl subversion debianutils
         sudo -E apt -y autoremove --purge
         sudo -E systemctl daemon-reload
         sudo -E apt clean && sudo -E apt autoclean
@@ -99,9 +99,9 @@ jobs:
         echo "DATE1=$(date "+%Y-%m-%d")" >> $GITHUB_ENV
         echo "DATE2=$(date "+%Y%m%d%H%M")" >> $GITHUB_ENV
  
-    - name: Load custom feeds
-      run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+    # - name: Load custom feeds
+    #   run: |
+        #[ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         #chmod +x $DIY_P1_SH
         #cd openwrt
         #$GITHUB_WORKSPACE/$DIY_P1_SH
@@ -146,9 +146,9 @@ jobs:
       id: compile
       run: |
         cd openwrt
-        echo -e "$(($(nproc)-2)) thread compile"
-        make -j$(($(nproc)-2)) V=s
-        #make -j$(($(nproc)-2)) || make -j1 || make -j1 V=s
+        echo -e "$(($(nproc)-1)) thread compile"
+        make -j$(($(nproc)-1)) V=s
+        #make -j$(($(nproc)-1)) || make -j1 || make -j1 V=s
         echo "status=success" >> ${GITHUB_OUTPUT}
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
