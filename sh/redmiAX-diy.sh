@@ -41,7 +41,12 @@ rm -rf package/custom; mkdir package/custom
 #sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
 
 #添加额外软件包
-merge_package https://github.com/kenzok8/small-package small-package/luci-app-openclash
+merge_package https://github.com/kenzok8/small-package small-package/luci-app-bypass
+merge_package https://github.com/kenzok8/small-package small-package/lua-neturl
+merge_package https://github.com/kenzok8/small-package small-package/chinadns-ng
+merge_package https://github.com/kenzok8/small-package small-package/tcping
+merge_package https://github.com/kenzok8/small-package small-package/luci-theme-argon
+merge_package https://github.com/kenzok8/small-package small-package/luci-app-argon-config
 #git clone https://github.com/project-lede/luci-app-godproxy package/luci-app-godproxy
 
 
@@ -49,4 +54,4 @@ merge_package https://github.com/kenzok8/small-package small-package/luci-app-op
 ./scripts/feeds install -a
 
 echo "========================="
-echo " redmiAX-diy 配置……"
+echo " redmiAX-diy 配置完成……"
