@@ -26,7 +26,7 @@ env:
   REPO_BRANCH: main_nss
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: config/AX6-AgustinLorenzo-plus.config
-  REDMI_AX6_DIY: sh/redmiAX-diy.sh
+  REDMI_AX6_DIY: sh/redmiAX6-diy.sh
   #DTS_FILE: ipq8071-ax6.dts
   #DIY_P1_SH: diy-part1.sh
   #DIY_P2_SH: sh/AX6_diy-part2.sh
