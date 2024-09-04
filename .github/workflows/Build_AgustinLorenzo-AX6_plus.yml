@@ -82,6 +82,7 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /mnt/workdir
         sudo chown $USER:$GROUPS /mnt/workdir
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE20=true
         echo "status=success" >> ${GITHUB_OUTPUT}
         df -Th
         
