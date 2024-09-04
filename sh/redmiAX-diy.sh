@@ -37,8 +37,8 @@ rm -rf package/custom; mkdir package/custom
 # 删除软件包
  #rm -rf feeds/packages/net/openss
 
-#修改默认IP地址
-sed -i 's/192.168.1.1/192.168.6.1/g' package/base-files/files/bin/config_generate
+# Modify default IP
+#sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
 
 #添加额外软件包
 merge_package https://github.com/kenzok8/small-package small-package/luci-app-bypass
@@ -47,6 +47,7 @@ merge_package https://github.com/kenzok8/small-package small-package/chinadns-ng
 merge_package https://github.com/kenzok8/small-package small-package/tcping
 merge_package https://github.com/kenzok8/small-package small-package/luci-theme-argon
 merge_package https://github.com/kenzok8/small-package small-package/luci-app-argon-config
+merge_package https://github.com/kiddin9/openwrt-packages openwrt-packages/luci-app-temp-status
 #git clone https://github.com/project-lede/luci-app-godproxy package/luci-app-godproxy
 
 
