@@ -26,6 +26,7 @@ env:
   REPO_BRANCH: main_nss
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: config/AX6-AgustinLorenzo-plus.config
+  REDMI_AX6_DIY: sh/redmiAX-diy.sh
   #DTS_FILE: ipq8071-ax6.dts
   #DIY_P1_SH: diy-part1.sh
   #DIY_P2_SH: sh/AX6_diy-part2.sh
@@ -100,12 +101,14 @@ jobs:
         echo "DATE1=$(date "+%Y-%m-%d")" >> $GITHUB_ENV
         echo "DATE2=$(date "+%Y%m%d%H%M")" >> $GITHUB_ENV
  
-    # - name: Load custom feeds
-    #   run: |
+    - name: Load custom feeds
+      run: |
         #[ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         #chmod +x $DIY_P1_SH
-        #cd openwrt
+        chmod +x $REDMI_AX6_DIY
+        cd openwrt        
         #$GITHUB_WORKSPACE/$DIY_P1_SH
+        $GITHUB_WORKSPACE/$REDMI_AX6_DIY
         
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a
