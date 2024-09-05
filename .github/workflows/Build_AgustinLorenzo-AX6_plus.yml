@@ -31,11 +31,11 @@ env:
   #DIY_P1_SH: diy-part1.sh
   #DIY_P2_SH: sh/AX6_diy-part2.sh
   #DIY_P3_SH: sh/ARMv8_diy-part2.sh
-  UPLOAD_BIN_DIR: false
+  UPLOAD_BIN_DIR: true
   UPLOAD_FIRMWARE: true
   UPLOAD_COWTRANSFER: false
   UPLOAD_WETRANSFER: false
-  UPLOAD_RELEASE: true
+  UPLOAD_RELEASE: false
   TZ: Asia/Shanghai
   FILE_NAME: Redmi-AX6(AgustinLorenzo-plus)
   PRODUCT_NAME: Redmi-AX6(AgustinLorenzo-plus)
@@ -83,7 +83,7 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /mnt/workdir
         sudo chown $USER:$GROUPS /mnt/workdir
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE20=true
+        #FORCE_JAVASCRIPT_ACTIONS_TO_NODE20=true
         echo "status=success" >> ${GITHUB_OUTPUT}
         df -Th
         
@@ -107,7 +107,7 @@ jobs:
     #     #chmod +x $DIY_P1_SH
     #     chmod +x $REDMI_AX6_DIY
     #     cd openwrt        
-    #     #$GITHUB_WORKSPACE/$DIY_P1_SH
+    #     $GITHUB_WORKSPACE/$DIY_P1_SH
     #     $GITHUB_WORKSPACE/$REDMI_AX6_DIY
         
     - name: Update feeds
@@ -121,10 +121,10 @@ jobs:
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         # chmod +x $DIY_P2_SH
-        # #chmod +x $DIY_P3_SH
+        # chmod +x $DIY_P3_SH
         # cd openwrt
         # $GITHUB_WORKSPACE/$DIY_P2_SH
-        # #$GITHUB_WORKSPACE/$DIY_P3_SH
+        # $GITHUB_WORKSPACE/$DIY_P3_SH
 
     # - name: Load custom dts
     #   run: |  
