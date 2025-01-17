@@ -22,7 +22,7 @@ on:
   #   - cron: 37 3 * * 4
 
 env:
-  REPO_URL: https://github.com/gaifeng8864/openwrt-redmiAX6-nss
+  REPO_URL: https://github.com/AgustinLorenzo/openwrt
   REPO_BRANCH: main_nss
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: config/AX6-AgustinLorenzo-plus.config
