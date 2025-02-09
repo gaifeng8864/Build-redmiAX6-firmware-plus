@@ -127,9 +127,9 @@ jobs:
         # $GITHUB_WORKSPACE/$DIY_P2_SH
         # $GITHUB_WORKSPACE/$DIY_P3_SH
 
-    #- name: Load custom dts
-    #  run: |  
-    #    [ -e $DTS_FILE ] && mv $DTS_FILE openwrt/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ax6.dts
+    - name: Load custom dts
+      run: |  
+        [ -e $DTS_FILE ] && mv $DTS_FILE openwrt/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ax6.dts
 
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
