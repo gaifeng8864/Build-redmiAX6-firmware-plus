@@ -8,7 +8,7 @@
 # Description: Build OpenWrt using GitHub Actions
 #
 
-name: Build AgustinLorenzo Redmi-AX6 plus
+name: Build openwrt redmi_AX6 plus
 
 on:
   # repository_dispatch:
@@ -26,7 +26,6 @@ env:
   REPO_BRANCH: main_nss
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: config/AX6-AgustinLorenzo-plus.config
-  #REDMI_AX6_DIY: sh/redmiAX6-diy.sh
   DTS_FILE: ipq8071-ax6.dts
   #DIY_P1_SH: diy-part1.sh
   #DIY_P2_SH: sh/AX6_diy-part2.sh
@@ -103,9 +102,18 @@ jobs:
         echo "DATE1=$(date "+%Y-%m-%d")" >> $GITHUB_ENV
         echo "DATE2=$(date "+%Y%m%d%H%M")" >> $GITHUB_ENV
  
-    - name: Load custom feeds
+    #- name: Load custom feeds
+    #  run: |
+    #    [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+
+    - name: Append&Load custom feeds
       run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        if [ -e "$FEEDS_CONF" ]; then
+            cat "$FEEDS_CONF" >> openwrt/feeds.conf.default
+            echo "Custom feeds appended successfully"
+        else
+            echo "Custom feeds file $FEEDS_CONF not found"
+        fi
     #     #chmod +x $DIY_P1_SH
     #     chmod +x $REDMI_AX6_DIY
     #     cd openwrt        
@@ -144,7 +152,7 @@ jobs:
       run: |
         cd openwrt
         make defconfig
-        make download -j$(($(nproc)-2))
+        make download -j$(($(nproc)-0))
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
@@ -152,8 +160,8 @@ jobs:
       id: compile
       run: |
         cd openwrt
-        echo -e "$(($(nproc)-1)) thread compile"
-        make -j$(($(nproc)-1)) V=s
+        echo -e "$(($(nproc)-0)) thread compile"
+        make -j$(($(nproc)-0)) V=s
         #make -j$(($(nproc)-2)) || make -j1 || make -j1 V=s
         echo "status=success" >> ${GITHUB_OUTPUT}
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
@@ -164,7 +172,7 @@ jobs:
       uses: actions/upload-artifact@main
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true' && !cancelled()
       with:
-        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        name: AgustinLorenzo_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin
       
     - name: Clean up server space
@@ -192,7 +200,7 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       #if: env.UPLOAD_FIRMWARE == 'true' && steps.organize.outputs.status == 'success' && !cancelled()
       with:
-        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        name: AgustinLorenzo_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
     # - name: Create release
@@ -241,5 +249,7 @@ jobs:
     #    编译时间：${{ env.DATE }}
     #    OpenWrt 更新信息：${{ env.useVersionInfo }}
     #    ${{ env.PRODUCT_NAME }} 编译完成
+    #    "
+    #    curl "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" -d "chat_id=${{ secrets.TELEGRAM_TO }}&text=${MSG}"
     #    "
     #    curl "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" -d "chat_id=${{ secrets.TELEGRAM_TO }}&text=${MSG}"
