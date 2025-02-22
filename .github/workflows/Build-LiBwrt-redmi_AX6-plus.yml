@@ -147,7 +147,7 @@ jobs:
       run: |
         cd openwrt
         make defconfig
-        make download -j$(($(nproc)-0))
+        make download -j$(($(nproc)-2))
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
