@@ -23,7 +23,7 @@ on:
 
 env:
   REPO_URL: https://github.com/LiBwrt/openwrt-6.x.git
-  REPO_BRANCH: kernel-6.12
+  REPO_BRANCH: k6.12-nss
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: config/AX6-LiBwrt-plus.config
   #DTS_FILE: ipq8071-ax6.dts
@@ -133,7 +133,7 @@ jobs:
 
     #- name: Load custom dts
     #  run: |  
-    #    [ -e $DTS_FILE ] && mv $DTS_FILE openwrt/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ax6.dts
+    #    [ -e $DTS_FILE ] && mv $DTS_FILE openwrt/target/linux/qualcommax/files/arch/arm64/boot/dts/qcom/ipq8071-ax6.dts  
 
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
