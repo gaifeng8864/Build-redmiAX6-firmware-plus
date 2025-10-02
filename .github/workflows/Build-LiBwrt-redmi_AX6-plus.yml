@@ -81,7 +81,9 @@ jobs:
                                libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libreadline-dev libfuse-dev libssl-dev libtool lrzsz \
                                genisoimage msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip libpython3-dev qemu-utils \
                                rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev \
-                               m4 pkg-config clang python3-distutils file 
+                               m4 clang python3-distutils file
+        sudo -E apt remove -y pkgconf
+        sudo -E apt install -y pkg-config
                                 
         sudo -E systemctl daemon-reload
         sudo -E apt-get -y autoremove --purge
