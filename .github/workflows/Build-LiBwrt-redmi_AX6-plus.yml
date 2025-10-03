@@ -133,11 +133,12 @@ jobs:
       run: cd openwrt && ./scripts/feeds install -a
     
     - name: Fix bypass DNS_DIR
-      run: cd openwrt
-           file=$(find -L . -path '*/luci-app-bypass/root/etc/init.d/bypass' -type f -print -quit)
-           [ -n "$file" ] || { echo "ERROR:luci-app-bypass init.d not found!"; exit 1; }
-           grep -q '^DNS_DIR=' "$file" || { echo "ERROR:DNS_DIR line not found in bypass init.d!"; exit 1; }
-           sed -i 's|^DNS_DIR=.*|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' "$file" 
+      run: | 
+        cd openwrt
+        file=$(find -L . -path '*/luci-app-bypass/root/etc/init.d/bypass' -type f -print -quit)
+        [ -n "$file" ] || { echo "ERROR:luci-app-bypass init.d not found!"; exit 1; }
+        grep -q '^DNS_DIR=' "$file" || { echo "ERROR:DNS_DIR line not found in bypass init.d!"; exit 1; }
+        sed -i 's|^DNS_DIR=.*|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' "$file" 
     
     - name: Load custom configuration
       run: |
