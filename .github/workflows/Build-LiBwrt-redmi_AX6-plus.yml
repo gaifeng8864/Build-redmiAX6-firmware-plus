@@ -133,7 +133,7 @@ jobs:
       run: cd openwrt && ./scripts/feeds install -a
     
     - name: Fix bypass dns
-      run: find ./ -path '*/luci-app-bypass/root/etc/init.d/bypass' -type f -exec sed -i 's|DNS_DIR=/tmp/dnsmasq.by|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' {} +
+      run: cd openwrt && find ./ -path '*/luci-app-bypass/root/etc/init.d/bypass' -type f -exec sed -i 's|DNS_DIR=/tmp/dnsmasq.by|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' {} +
 
     - name: Load custom configuration
       run: |
