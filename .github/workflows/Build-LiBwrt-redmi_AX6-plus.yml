@@ -23,7 +23,7 @@ on:
 
 env:
   REPO_URL: https://github.com/LiBwrt/openwrt-6.x.git
-  REPO_BRANCH: k6.12-nss
+  REPO_BRANCH: main-nss
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: config/AX6-LiBwrt-plus.config
   #DTS_FILE: ipq8071-ax6.dts
