@@ -15,7 +15,6 @@ env:
   CONFIG_FILE: config/AX6-LiBwrt-plus.config
   TZ: Asia/Shanghai
   FILE_NAME: Redmi-AX6(LiBwrt-plus)
-  # ✅ 关键：Node 24 兼容（避免未来警告）
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -27,6 +26,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@main
 
+    # ✅ 初始化编译环境（已验证支持 NSS）
     - name: 初始化环境
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -48,6 +48,7 @@ jobs:
           curl wget rsync file unzip \
           libfuse-dev libexpat1-dev
 
+        # 设置北京时间
         sudo timedatectl set-timezone "$TZ"
 
         sudo mkdir -p /mnt/workdir
@@ -55,22 +56,26 @@ jobs:
 
         df -Th
 
+    # ✅ 拉取源码
     - name: Clone source code
       run: |
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
 
+    # ✅ 追加自定义 feeds（关键）
     - name: Append custom feeds
       run: |
         if [ -f "$FEEDS_CONF" ]; then
           cat "$FEEDS_CONF" >> openwrt/feeds.conf.default
         fi
 
+    # ✅ 更新 feeds
     - name: Update feeds
       run: |
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
+    # ✅ 修复 bypass（必须保留）
     - name: Fix bypass DNS_DIR
       run: |
         cd openwrt
@@ -79,33 +84,49 @@ jobs:
         grep -q '^DNS_DIR=' "$file" || { echo "ERROR:DNS_DIR line not found in bypass init.d!"; exit 1; }
         sed -i 's|^DNS_DIR=.*|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' "$file"
 
-    - name: Fix WiFi DHCP first boot issue
+    # ✅ WiFi 修复（根因方案：仅设置密码）
+    - name: Fix WiFi (set password)
       run: |
-        mkdir -p files/etc/uci-defaults
+        mkdir -p openwrt/files/etc/uci-defaults
 
-        cat > files/etc/uci-defaults/99-fix-wifi-dhcp << 'EOF'
+        cat > openwrt/files/etc/uci-defaults/99-wifi-password << 'EOF'
         #!/bin/sh
 
-        sleep 10
-        
         for iface in $(uci show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1); do
-            uci set wireless.$iface.network='lan'
+            uci set wireless.$iface.encryption='psk2'
+            uci set wireless.$iface.key='12345678'
         done
-        
+
         uci commit wireless
-        
-        /etc/init.d/network restart
-        /etc/init.d/dnsmasq restart
-        
+
         exit 0
         EOF
-        
-                chmod +x files/etc/uci-defaults/99-fix-wifi-dhcp
 
+        chmod +x openwrt/files/etc/uci-defaults/99-wifi-password
+
+    # ✅ 写入固件版本信息（LuCI 可见）
+    - name: Add firmware version info
+      run: |
+        mkdir -p openwrt/files/etc/uci-defaults
+
+        cat > openwrt/files/etc/uci-defaults/99-version-info << 'EOF'
+        #!/bin/sh
+
+        BUILD_TIME=$(date +'%Y-%m-%d %H:%M')
+
+        sed -i "s/^DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION='LiBwrt AX6 (NSS) | Built on ${BUILD_TIME}'/" /etc/openwrt_release
+
+        exit 0
+        EOF
+
+        chmod +x openwrt/files/etc/uci-defaults/99-version-info
+
+    # ✅ 加载配置
     - name: Load config
       run: |
         cp $CONFIG_FILE openwrt/.config
 
+    # ✅ SSH 调试入口
     - name: SSH connection to Actions
       if: ${{ github.event.inputs.ssh == 'true' }}
       uses: P3TERX/ssh2actions@v1.0.0
@@ -113,19 +134,27 @@ jobs:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
+    # ✅ 下载依赖
     - name: Download packages
       run: |
         cd openwrt
         make defconfig
         make download -j$(nproc)
 
+    # ✅ 编译固件
     - name: Compile firmware
       run: |
         cd openwrt
         make -j$(nproc) V=s
 
+    # ✅ 生成北京时间（用于命名）
+    - name: Set build time
+      run: |
+        echo "BUILD_TIME=$(date +'%Y%m%d-%H%M')" >> $GITHUB_ENV
+
+    # ✅ 上传固件（带时间版本号）
     - name: Upload firmware
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.FILE_NAME }}
+        name: ${{ env.FILE_NAME }}-${{ env.BUILD_TIME }}
         path: openwrt/bin
