@@ -1,0 +1,132 @@
+name: Build LiBwrt Redmi AX6 Plus (Optimized)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+
+env:
+  REPO_URL: https://github.com/LiBwrt/openwrt-6.x.git
+  REPO_BRANCH: main-nss
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: config/AX6-LiBwrt-plus.config
+  UPLOAD_BIN_DIR: true
+  UPLOAD_FIRMWARE: true
+  TZ: Asia/Shanghai
+  FILE_NAME: Redmi-AX6(LiBwrt-plus)
+  PRODUCT_NAME: Redmi-AX6(LiBwrt-plus)
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: System check
+      run: |
+        echo "CPU: $(nproc)"
+        df -h
+
+    - name: Init environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E apt-get update
+        sudo -E apt-get -y full-upgrade
+        sudo -E apt-get -y install $(curl -fsSL is.gd/depends_ubuntu_2204)
+
+    - name: Clone source
+      run: |
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+        echo "WORKDIR=$GITHUB_WORKSPACE/openwrt" >> $GITHUB_ENV
+
+    - name: Update feeds
+      working-directory: openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Load config
+      run: |
+        [ -e $CONFIG_FILE ] && cp $CONFIG_FILE openwrt/.config
+
+    # =============================
+    # 🔧 FIX WiFi FIRST BOOT (AX6)
+    # =============================
+    - name: Add WiFi first boot fix (AX6 minimal)
+      working-directory: openwrt
+      run: |
+        mkdir -p files/etc/uci-defaults
+        cat > files/etc/uci-defaults/99-enable-wifi << 'EOF'
+        #!/bin/sh
+
+        # 等待 wireless 生成
+        i=0
+        while [ $i -lt 15 ]; do
+            uci show wireless >/dev/null 2>&1 && break
+            sleep 2
+            i=$((i+1))
+        done
+
+        # 启用 WiFi
+        for dev in $(uci show wireless | grep "=wifi-device" | cut -d'.' -f2 | cut -d'=' -f1); do
+            uci set wireless.$dev.disabled='0'
+        done
+
+        # 仅绑定 LAN（最小修改）
+        for iface in $(uci show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1); do
+            uci set wireless.$iface.network='lan'
+        done
+
+        uci commit wireless
+
+        wifi reload
+        /etc/init.d/dnsmasq restart
+
+        exit 0
+        EOF
+
+        chmod +x files/etc/uci-defaults/99-enable-wifi
+
+    - name: SSH debug (optional)
+      if: ${{ github.event.inputs.ssh == 'true' }}
+      uses: P3TERX/ssh2actions@v1.0.0
+
+    - name: Download packages
+      working-directory: openwrt
+      run: |
+        make defconfig
+        make download -j$(nproc)
+
+    - name: Compile firmware
+      working-directory: openwrt
+      run: |
+        make -j$(nproc)
+        echo "status=success" >> $GITHUB_ENV
+
+    # =============================
+    # 📦 ARTIFACT (lint clean)
+    # =============================
+    - name: Upload bin directory
+      if: env.UPLOAD_BIN_DIR == 'true'
+      uses: actions/upload-artifact@main
+      with:
+        name: LiBwrt-bin-${{ env.PRODUCT_NAME }}
+        path: openwrt/bin
+
+    - name: Prepare firmware output
+      if: success()
+      run: |
+        echo "FIRMWARE_PATH=${GITHUB_WORKSPACE}/openwrt/bin/targets" >> $GITHUB_ENV
+
+    - name: Upload firmware
+      if: env.UPLOAD_FIRMWARE == 'true'
+      uses: actions/upload-artifact@main
+      with:
+        name: LiBwrt-firmware-${{ env.PRODUCT_NAME }}
+        path: "${{ env.FIRMWARE_PATH }}"
