@@ -1,4 +1,4 @@
-name: Build LiBwrt redmi_AX6 plus
+name: Build LiBwrt redmi_AX6 plus New
 
 on:
   workflow_dispatch:
