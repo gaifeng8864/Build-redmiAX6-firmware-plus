@@ -1,0 +1,129 @@
+name: Build LiBwrt redmi_AX6 plus
+
+on:
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: 'SSH connection to Actions'
+        required: false
+        default: 'false'
+
+env:
+  REPO_URL: https://github.com/LiBwrt/openwrt-6.x.git
+  REPO_BRANCH: main-nss
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: config/AX6-LiBwrt-plus.config
+  TZ: Asia/Shanghai
+  FILE_NAME: Redmi-AX6(LiBwrt-plus)
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: 初始化环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E apt-get update
+
+        sudo -E apt-get install -y \
+          build-essential clang flex bison gawk \
+          gcc-multilib g++-multilib gettext git \
+          binutils patch diffutils make \
+          autoconf automake libtool pkg-config \
+          device-tree-compiler cpio squashfs-tools \
+          genisoimage fastjar help2man \
+          python3 python3-pip python3-distutils \
+          libncurses5-dev libncursesw5-dev \
+          libssl-dev libelf-dev \
+          libgmp3-dev libmpfr-dev libmpc-dev \
+          zlib1g-dev liblzma-dev \
+          curl wget rsync file unzip \
+          libfuse-dev libexpat1-dev
+
+        sudo timedatectl set-timezone "$TZ"
+
+        sudo mkdir -p /mnt/workdir
+        sudo chown $USER:$GROUPS /mnt/workdir
+
+        df -Th
+
+    - name: Clone source code
+      run: |
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+
+    - name: Append custom feeds
+      run: |
+        if [ -f "$FEEDS_CONF" ]; then
+          cat "$FEEDS_CONF" >> openwrt/feeds.conf.default
+        fi
+
+    - name: Update feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Fix bypass DNS_DIR
+      run: |
+        cd openwrt
+        file=$(find -L . -path '*/luci-app-bypass/root/etc/init.d/bypass' -type f -print -quit)
+        [ -n "$file" ] || { echo "ERROR:luci-app-bypass init.d not found!"; exit 1; }
+        grep -q '^DNS_DIR=' "$file" || { echo "ERROR:DNS_DIR line not found in bypass init.d!"; exit 1; }
+        sed -i 's|^DNS_DIR=.*|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' "$file"
+
+    - name: Fix WiFi DHCP first boot issue
+      run: |
+        mkdir -p files/etc/uci-defaults
+
+        cat > files/etc/uci-defaults/99-fix-wifi-dhcp << 'EOF'
+#!/bin/sh
+
+sleep 10
+
+for iface in $(uci show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1); do
+    uci set wireless.$iface.network='lan'
+done
+
+uci commit wireless
+
+/etc/init.d/network restart
+/etc/init.d/dnsmasq restart
+
+exit 0
+EOF
+
+        chmod +x files/etc/uci-defaults/99-fix-wifi-dhcp
+
+    - name: Load config
+      run: |
+        cp $CONFIG_FILE openwrt/.config
+
+    - name: SSH connection to Actions
+      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh != 'false') || contains(github.event.action, 'ssh')
+      uses: P3TERX/ssh2actions@v1.0.0
+      env:
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+    - name: Download packages
+      run: |
+        cd openwrt
+        make defconfig
+        make download -j$(nproc)
+
+    - name: Compile firmware
+      run: |
+        cd openwrt
+        make -j$(nproc) V=s
+
+    - name: Upload firmware
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.FILE_NAME }}
+        path: openwrt/bin
