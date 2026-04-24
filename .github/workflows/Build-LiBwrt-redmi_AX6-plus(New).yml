@@ -82,30 +82,30 @@ jobs:
         mkdir -p files/etc/uci-defaults
 
         cat > files/etc/uci-defaults/99-fix-wifi-dhcp << 'EOF'
-#!/bin/sh
+        #!/bin/sh
 
-sleep 10
-
-for iface in $(uci show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1); do
-    uci set wireless.$iface.network='lan'
-done
-
-uci commit wireless
-
-/etc/init.d/network restart
-/etc/init.d/dnsmasq restart
-
-exit 0
-EOF
-
-        chmod +x files/etc/uci-defaults/99-fix-wifi-dhcp
+        sleep 10
+        
+        for iface in $(uci show wireless | grep "=wifi-iface" | cut -d'.' -f2 | cut -d'=' -f1); do
+            uci set wireless.$iface.network='lan'
+        done
+        
+        uci commit wireless
+        
+        /etc/init.d/network restart
+        /etc/init.d/dnsmasq restart
+        
+        exit 0
+        EOF
+        
+                chmod +x files/etc/uci-defaults/99-fix-wifi-dhcp
 
     - name: Load config
       run: |
         cp $CONFIG_FILE openwrt/.config
 
     - name: SSH connection to Actions
-      if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh != 'false') || contains(github.event.action, 'ssh')
+      if: ${{ github.event.inputs.ssh == 'true' }}
       uses: P3TERX/ssh2actions@v1.0.0
       env:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
