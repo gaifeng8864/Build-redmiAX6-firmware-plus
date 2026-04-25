@@ -104,23 +104,6 @@ jobs:
 
         chmod +x openwrt/files/etc/uci-defaults/99-wifi-password
 
-    # ✅ 写入固件版本信息（LuCI 可见）
-    - name: Add firmware version info
-      run: |
-        mkdir -p openwrt/files/etc/uci-defaults
-
-        cat > openwrt/files/etc/uci-defaults/99-version-info << 'EOF'
-        #!/bin/sh
-
-        BUILD_TIME=$(date +'%Y-%m-%d %H:%M')
-
-        sed -i "s/^DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION='LiBwrt AX6 (NSS) | Built on ${BUILD_TIME}'/" /etc/openwrt_release
-
-        exit 0
-        EOF
-
-        chmod +x openwrt/files/etc/uci-defaults/99-version-info
-
     # ✅ 加载配置
     - name: Load config
       run: |
