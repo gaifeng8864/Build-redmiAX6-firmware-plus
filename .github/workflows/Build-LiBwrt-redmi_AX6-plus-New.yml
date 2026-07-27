@@ -46,7 +46,7 @@ jobs:
           libgmp3-dev libmpfr-dev libmpc-dev \
           zlib1g-dev liblzma-dev \
           curl wget rsync file unzip \
-          libfuse-dev libexpat1-dev
+          libfuse-dev libexpat1-dev mold
 
         # 设置北京时间
         sudo timedatectl set-timezone "$TZ"
