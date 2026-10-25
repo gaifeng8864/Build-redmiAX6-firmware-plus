@@ -1,7 +1,5 @@
--- 自定义规则：校验、去重、原子保存；不写入实际节点或密钥。
 local M = {}
 
--- 限制规则体积和条目数量，避免错误输入导致资源滥用。
 local MAX_BYTES = 16384
 local MAX_ITEMS = 256
 local MAX_ITEM_BYTES = 512
@@ -53,7 +51,7 @@ function M.normalize(text)
     return text, values
 end
 
--- 合并顺序：上游内置规则优先，追加用户规则，大小写不敏感去重。
+
 function M.merge(builtin, custom)
     local result, seen = {}, {}
 
@@ -71,7 +69,7 @@ function M.merge(builtin, custom)
     return result
 end
 
--- 验证后在同目录写入临时文件，通过 rename 原子替换单文件。
+-- Validate, then atomically replace one rules file.
 function M.atomic_write(path, text)
     local normalized, err = M.normalize(text)
     if not normalized then return nil, err end
@@ -105,7 +103,7 @@ function M.atomic_write(path, text)
 
     return true
 end
--- 两文件更新：先备份、再替换，若第二步失败则回滚第一步。
+-- Save two rule files with backup and rollback.
 function M.save_pair(paths, texts)
     local fs = require "nixio.fs"
     local nixio = require "nixio"
