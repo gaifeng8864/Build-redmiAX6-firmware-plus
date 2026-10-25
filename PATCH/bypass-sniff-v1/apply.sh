@@ -41,9 +41,9 @@ patch -d "$PKG" -p1 --batch --fuzz=0 < "$DIR/changes.patch" > "$PATCH_LOG" 2>&1 
 }
 
 # 改后再次核对精确内容，防止偏移应用造成行为差异。
-check_blob 'luasrc/model/cbi/bypass/advanced.lua' '69de09dedc1c8e06cad3d40ac50a2413591b8efb'
-check_blob 'root/usr/share/bypass/gen_config' '7e71015ce3f431851e03f50e85d8c6131d39d013'
-check_blob 'root/etc/init.d/bypass' '0975a27777cbd22344ccfb7397b79458f1f65abe'
+check_blob 'luasrc/model/cbi/bypass/advanced.lua' 'b8a144e4baf2e4dc14c2b7baffd16aa483805e2d'
+check_blob 'root/usr/share/bypass/gen_config' 'b1ccffef2bf41a121ce23bd5a7a61e3b6b9bcb16'
+check_blob 'root/etc/init.d/bypass' 'd049674ce7c1af1eb2c90c44e430913677570584'
 
 # 附加三个已验证辅助脚本和升级保留清单，不写入节点或个人配置。
 install -D -m 0644 "$DIR/sniff_rules.lua" "$PKG/root/usr/share/bypass/sniff_rules.lua"
