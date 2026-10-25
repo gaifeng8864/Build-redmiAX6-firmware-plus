@@ -1,16 +1,15 @@
 --- a/luasrc/model/cbi/bypass/advanced.lua
 +++ b/luasrc/model/cbi/bypass/advanced.lua
-@@ -61,6 +61,134 @@
+@@ -61,6 +61,130 @@
  
  -- [[ fragmen Settings ]]--
  if is_finded("xray") then
-+-- Xray 自定义嗅探设置（保留原有 LuCI 选项和行为）
++-- Xray Sniffing Settings v3
 +local fs = require "nixio.fs"
 +local rules = assert(loadfile(
 +    "/usr/share/bypass/sniff_rules.lua"
 +))()
 +
-+-- 规则单独保存在 /etc/bypass，避免混入 UCI 配置或节点密钥。
 +local sniff_paths = {
 +    "/etc/bypass/custom_sniff_domains.list",
 +    "/etc/bypass/custom_sniff_ips.list"
@@ -40,7 +39,6 @@
 +    Flag, "sniffing_enabled",
 +    translate("Enable Sniffing")
 +)
-+-- 默认开启嗅探；未显式配置时与已验证版本一致。
 +item.default = "1"
 +item.rmempty = false
 +
@@ -49,7 +47,6 @@
 +    translate("Sniffing Route Only"),
 +    translate("Keep original destination address.")
 +)
-+-- routeOnly=0：允许目标替换；排除域名不会按 SNI 改写目标。
 +item.default = "0"
 +item.rmempty = false
 +
@@ -110,7 +107,6 @@
 +    return "Built-in exclusions are preserved."
 +end
 +
-+-- 两份规则先校验再成对保存；失败由规则模块负责回滚。
 +function m.on_before_save(self)
 +    if sniff_pending[1] == nil
 +        and sniff_pending[2] == nil then
@@ -137,11 +133,11 @@
  
 --- a/root/usr/share/bypass/gen_config
 +++ b/root/usr/share/bypass/gen_config
-@@ -180,6 +180,68 @@
+@@ -180,6 +180,65 @@
      })
  end
  
-+-- 仅为透明代理入站合并自定义嗅探规则；保留上游内置排除域名。
++-- User-managed Xray sniffing settings v2
 +if local_port ~= "0" then
 +    local rules = assert(
 +        loadfile("/usr/share/bypass/sniff_rules.lua")
@@ -183,12 +179,9 @@
 +
 +    local sniff = inbound.sniffing
 +
-+    -- 未配置时默认开启；由 LuCI 的 sniffing_enabled=0 显式关闭。
 +    sniff.enabled = global.sniffing_enabled ~= "0"
-+    -- 只有设置为 1 才采用 routeOnly；默认为 0。
 +    sniff.routeOnly = global.sniffing_route_only == "1"
 +
-+    -- 内置名单在前、自定义名单在后，大小写不敏感去重。
 +    sniff.domainsExcluded = rules.merge(
 +        sniff.domainsExcluded or {},
 +        read_rules("/etc/bypass/custom_sniff_domains.list")
@@ -208,13 +201,12 @@
  if proto and proto:find("tcp") and socks_port ~= "0" then
 --- a/root/etc/init.d/bypass
 +++ b/root/etc/init.d/bypass
-@@ -159,7 +159,13 @@
+@@ -159,7 +159,12 @@
  			}
  		EOF
  		;;
 -	v2ray|hysteria)
 +	v2ray)
-+		# Xray 先生成到临时文件并校验，通过后才原子替换目标 JSON。
 +		[ "$rtype" = udp ] && smode=udp || smode=tcp
 +		[ "$rtype" = socks ] && lport=0
 +		sh "/usr/share/bypass/xray-atomic-generate.sh" "$BIN_DIR/gen_config" "$config_file" "$1" "$smode" "$lport" "$ssport" "$serv_ip" || return 1
@@ -223,7 +215,7 @@
  		[ $rtype = udp ] && smode=udp || smode=tcp
  		[ $rtype = socks ] && lport=0
  		lua $BIN_DIR/gen_config $1 $smode $lport $ssport $serv_ip >$config_file
-@@ -413,7 +419,7 @@
+@@ -413,7 +418,7 @@
  		else
  			port=0
  		fi
@@ -232,7 +224,7 @@
  		$cmd -c $config_file >$log_file 2>&1 &
  
  		log "Main Node: $($cmd -version | head -1 | awk '{print$1,$2}') Started!"
-@@ -472,7 +478,7 @@
+@@ -472,7 +477,7 @@
  		log "UDP Relay: $name Started!"
  		;;
  	v2ray|hysteria)
@@ -241,11 +233,10 @@
  		$cmd -c $config_file >$log_file 2>&1 &
  		log "UDP Relay: $($cmd -version | head -1 | awk '{print$1,$2}') Started!"
  		;;
-@@ -1032,6 +1038,11 @@
+@@ -1032,6 +1037,10 @@
  
  restart(){
  	[ -f $LOC ] && exit 1
-+	# 重启前预检当前 TCP/UDP 节点；失败则保持已有服务不动。
 +	if ! sh "/usr/share/bypass/bypass-preflight.sh"; then
 +		log "Xray preflight failed; restart cancelled"
 +		return 1
