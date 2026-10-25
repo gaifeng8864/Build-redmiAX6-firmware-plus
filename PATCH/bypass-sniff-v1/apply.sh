@@ -31,11 +31,11 @@ for rel in root/usr/share/bypass/sniff_rules.lua root/usr/share/bypass/bypass-pr
 done
 PATCH_LOG="$(mktemp)"
 trap 'rm -f "$PATCH_LOG"' EXIT
-if ! patch -d "$PKG" -p1 --batch --fuzz=0 --dry-run < "$DIR/changes.patch" > "$PATCH_LOG" 2>&1; then
+if ! patch -d "$PKG" -p1 --forward --batch --fuzz=0 --dry-run < "$DIR/changes.patch" > "$PATCH_LOG" 2>&1; then
     cat "$PATCH_LOG" >&2
     fail '补丁预演失败'
 fi
-patch -d "$PKG" -p1 --batch --fuzz=0 < "$DIR/changes.patch" > "$PATCH_LOG" 2>&1 || {
+patch -d "$PKG" -p1 --forward --batch --fuzz=0 < "$DIR/changes.patch" > "$PATCH_LOG" 2>&1 || {
     cat "$PATCH_LOG" >&2
     fail '补丁写入失败'
 }
