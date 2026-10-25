@@ -1,0 +1,4 @@
+# sysupgrade 保留配置时，显式保存这两个用户规则文件和 Bypass UCI 配置。
+/etc/config/bypass
+/etc/bypass/custom_sniff_domains.list
+/etc/bypass/custom_sniff_ips.list
