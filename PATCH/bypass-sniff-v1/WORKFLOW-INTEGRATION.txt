@@ -1,0 +1,15 @@
+# 工作流最小集成片段（需要人工审核并加入 YAML）
+#
+# 目标文件：
+# .github/workflows/Build-LiBwrt-redmi_AX6-plus-New.yml
+#
+# 仅在现有 "Fix bypass DNS_DIR" 步骤后、"Fix WiFi (set password)" 步骤前插入：
+#
+    # Bypass 嗅探 v1：feeds 安装和旧 DNS_DIR 修复完成后进行精确校验及注入。
+    # 若上游文件内容变化、补丁应用失败，则停止构建，禁止生成未验证固件。
+    - name: Apply guarded Bypass Sniffing v1 patch
+      run: |
+        set -euo pipefail
+        pkg="openwrt/feeds/kiddin9/luci-app-bypass"
+        test -f "$pkg/Makefile" || { echo "ERROR: Bypass feed missing"; exit 1; }
+        bash PATCH/bypass-sniff-v1/apply.sh "$pkg"
