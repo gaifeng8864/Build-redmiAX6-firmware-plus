@@ -2,7 +2,6 @@
 set -eu
 umask 077
 
-# 预检输出只写临时运行目录，不覆盖在线 Xray JSON。
 WORK=/var/run/bypass-preflight
 GEN="${TEST_GEN:-/usr/share/bypass/gen_config}"
 OUTDIR="$WORK/preflight-v4-output"
@@ -19,7 +18,6 @@ fail() {
     exit 1
 }
 
-# 节点是域名时解析 IPv4；解析失败则禁止重启。
 node_address() {
     host=$(get "bypass.$1.server")
     [ -n "$host" ] || fail "Node server missing"
@@ -54,7 +52,6 @@ check_node() {
         fail "Unsupported node type: $type"
 }
 
-# 每个 TCP/UDP 配置先生成测试文件，再调用 Xray 语法验证。
 validate_config() {
     mode="$1"
     node="$2"
