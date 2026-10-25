@@ -1,0 +1,246 @@
+--- a/luasrc/model/cbi/bypass/advanced.lua
++++ b/luasrc/model/cbi/bypass/advanced.lua
+@@ -61,6 +61,130 @@
+ 
+ -- [[ fragmen Settings ]]--
+ if is_finded("xray") then
++-- Xray Sniffing Settings v3
++local fs = require "nixio.fs"
++local rules = assert(loadfile(
++    "/usr/share/bypass/sniff_rules.lua"
++))()
++
++local sniff_paths = {
++    "/etc/bypass/custom_sniff_domains.list",
++    "/etc/bypass/custom_sniff_ips.list"
++}
++
++local sniff_pending = {}
++
++local function read_sniff_file(path)
++    local kind = fs.lstat(path, "type")
++
++    if not kind then return "" end
++
++    assert(kind == "reg",
++        "Invalid rules file type: " .. path)
++
++    return assert(fs.readfile(path),
++        "Cannot read rules file: " .. path)
++end
++
++local sniff_section = m:section(
++    TypedSection, "global",
++    translate("Xray Sniffing Settings")
++)
++sniff_section.anonymous = true
++
++local item = sniff_section:option(
++    Flag, "sniffing_enabled",
++    translate("Enable Sniffing")
++)
++item.default = "1"
++item.rmempty = false
++
++item = sniff_section:option(
++    Flag, "sniffing_route_only",
++    translate("Sniffing Route Only"),
++    translate("Keep original destination address.")
++)
++item.default = "0"
++item.rmempty = false
++
++local function add_sniff_editor(index, option, title)
++    local path = sniff_paths[index]
++
++    local editor = sniff_section:option(
++        TextValue, option, translate(title),
++        translate("One entry per line.")
++    )
++
++    editor.rows = 5
++    editor.wrap = "off"
++    editor.rmempty = true
++
++    editor.cfgvalue = function(self, section)
++        return read_sniff_file(path)
++    end
++
++    editor.validate = function(self, value, section)
++        local normalized, err = rules.normalize(value or "")
++
++        if not normalized then
++            return nil, tostring(err)
++        end
++
++        return normalized
++    end
++
++    editor.write = function(self, section, value)
++        sniff_pending[index] = value
++        return true
++    end
++
++    editor.remove = function(self, section)
++        if self:formvalue(section) == nil then
++            return false
++        end
++        if read_sniff_file(path) ~= "" then
++            sniff_pending[index] = ""
++            return true
++        end
++        return false
++    end
++end
++
++add_sniff_editor(1, "_sniff_domains",
++    "Custom Sniffing Excluded Domains")
++
++add_sniff_editor(2, "_sniff_ips",
++    "Custom Sniffing Excluded IPs")
++
++item = sniff_section:option(
++    DummyValue, "_sniff_builtin",
++    translate("Built-in Exclusions")
++)
++item.cfgvalue = function(self, section)
++    return "Built-in exclusions are preserved."
++end
++
++function m.on_before_save(self)
++    if sniff_pending[1] == nil
++        and sniff_pending[2] == nil then
++        return
++    end
++
++    local texts = {}
++
++    for i = 1, 2 do
++        texts[i] = sniff_pending[i]
++
++        if texts[i] == nil then
++            texts[i] = read_sniff_file(sniff_paths[i])
++        end
++    end
++
++    local ok, err = rules.save_pair(sniff_paths, texts)
++
++    assert(ok, "Failed to save sniffing rules: "
++        .. tostring(err))
++end
+ s = m:section(TypedSection, "global_xray_fragment", translate("Xray Fragment Settings"))
+ s.anonymous = true
+ 
+--- a/root/usr/share/bypass/gen_config
++++ b/root/usr/share/bypass/gen_config
+@@ -180,6 +180,65 @@
+     })
+ end
+ 
++-- User-managed Xray sniffing settings v2
++if local_port ~= "0" then
++    local rules = assert(
++        loadfile("/usr/share/bypass/sniff_rules.lua")
++    )()
++
++    local global = ucursor:get_all("bypass", "@global[0]") or {}
++
++    local function read_rules(path)
++        local f, err = io.open(path, "rb")
++
++        if not f then
++            if err and err:find("No such file", 1, true) then
++                return {}
++            end
++            error("Cannot open " .. path .. ": " .. tostring(err))
++        end
++
++        local content = f:read("*a")
++        f:close()
++        assert(content, "Cannot read " .. path)
++
++        local normalized, values = rules.normalize(content)
++        assert(normalized, path .. ": " .. tostring(values))
++
++        return values
++    end
++
++    local inbound
++    for _, item in ipairs(Xray.inbounds) do
++        if item.protocol == "dokodemo-door"
++            and item.port == tonumber(local_port) then
++            inbound = item
++            break
++        end
++    end
++
++    assert(inbound and inbound.sniffing,
++        "Xray sniffing inbound not found")
++
++    local sniff = inbound.sniffing
++
++    sniff.enabled = global.sniffing_enabled ~= "0"
++    sniff.routeOnly = global.sniffing_route_only == "1"
++
++    sniff.domainsExcluded = rules.merge(
++        sniff.domainsExcluded or {},
++        read_rules("/etc/bypass/custom_sniff_domains.list")
++    )
++
++    local ips = rules.merge(
++        sniff.ipsExcluded or {},
++        read_rules("/etc/bypass/custom_sniff_ips.list")
++    )
++
++    if #ips > 0 then
++        sniff.ipsExcluded = ips
++    end
++end
+ 	-- 开启 socks 代理
+ 	-- 检查是否启用 socks 代理
+ if proto and proto:find("tcp") and socks_port ~= "0" then
+--- a/root/etc/init.d/bypass
++++ b/root/etc/init.d/bypass
+@@ -159,7 +159,12 @@
+ 			}
+ 		EOF
+ 		;;
+-	v2ray|hysteria)
++	v2ray)
++		[ "$rtype" = udp ] && smode=udp || smode=tcp
++		[ "$rtype" = socks ] && lport=0
++		sh "/usr/share/bypass/xray-atomic-generate.sh" "$BIN_DIR/gen_config" "$config_file" "$1" "$smode" "$lport" "$ssport" "$serv_ip" || return 1
++		;;
++	hysteria)
+ 		[ $rtype = udp ] && smode=udp || smode=tcp
+ 		[ $rtype = socks ] && lport=0
+ 		lua $BIN_DIR/gen_config $1 $smode $lport $ssport $serv_ip >$config_file
+@@ -413,7 +418,7 @@
+ 		else
+ 			port=0
+ 		fi
+-		gen_config_file $GLOBAL_SERVER $rtype $port $server
++		gen_config_file $GLOBAL_SERVER $rtype $port $server || return 1
+ 		$cmd -c $config_file >$log_file 2>&1 &
+ 
+ 		log "Main Node: $($cmd -version | head -1 | awk '{print$1,$2}') Started!"
+@@ -472,7 +477,7 @@
+ 		log "UDP Relay: $name Started!"
+ 		;;
+ 	v2ray|hysteria)
+-		gen_config_file $UDP_RELAY_SERVER $rtype 0 $udp_server
++		gen_config_file $UDP_RELAY_SERVER $rtype 0 $udp_server || return 1
+ 		$cmd -c $config_file >$log_file 2>&1 &
+ 		log "UDP Relay: $($cmd -version | head -1 | awk '{print$1,$2}') Started!"
+ 		;;
+@@ -1032,6 +1037,10 @@
+ 
+ restart(){
+ 	[ -f $LOC ] && exit 1
++	if ! sh "/usr/share/bypass/bypass-preflight.sh"; then
++		log "Xray preflight failed; restart cancelled"
++		return 1
++	fi
+ 	touch $LOC
+ 	STATUS=N
+ 	stop
