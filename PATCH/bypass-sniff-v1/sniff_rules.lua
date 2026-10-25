@@ -51,7 +51,6 @@ function M.normalize(text)
     return text, values
 end
 
-
 function M.merge(builtin, custom)
     local result, seen = {}, {}
 
