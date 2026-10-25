@@ -84,6 +84,15 @@ jobs:
         grep -q '^DNS_DIR=' "$file" || { echo "ERROR:DNS_DIR line not found in bypass init.d!"; exit 1; }
         sed -i 's|^DNS_DIR=.*|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' "$file"
 
+    # ✅ Bypass 嗅探 v1：在 feeds 安装和 DNS_DIR 修复后应用补丁。
+    # 上游源码变更或验证失败时停止构建，不生成未验证固件。
+    - name: Apply guarded Bypass Sniffing v1 patch
+      run: |
+        set -euo pipefail
+        pkg="openwrt/feeds/kiddin9/luci-app-bypass"
+        test -f "$pkg/Makefile" || { echo "ERROR: Bypass feed missing"; exit 1; }
+        bash PATCH/bypass-sniff-v1/apply.sh "$pkg"    
+
     # ✅ WiFi 修复（根因方案：仅设置密码）
     - name: Fix WiFi (set password)
       run: |
