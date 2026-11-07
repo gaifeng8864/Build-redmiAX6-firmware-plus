@@ -91,7 +91,15 @@ jobs:
         set -euo pipefail
         pkg="openwrt/feeds/kiddin9/luci-app-bypass"
         test -f "$pkg/Makefile" || { echo "ERROR: Bypass feed missing"; exit 1; }
-        bash PATCH/bypass-sniff-v1/apply.sh "$pkg"    
+        bash PATCH/bypass-sniff-v1/apply.sh "$pkg"
+        # Fail fast if the validated JSON generator is missing from the actual feed.
+        installed="$pkg/root/usr/share/bypass/xray-atomic-generate.sh"
+        test -s "$installed"
+        test -x "$installed"
+        sh -n "$installed"
+        cmp -s PATCH/bypass-sniff-v1/xray-atomic-generate.sh "$installed"
+        grep -Fq 'TMP="$TMPDIR/config.json"' "$installed"
+        echo "PASS: Bypass atomic Xray JSON generator installed"    
 
     # ✅ WiFi 修复（根因方案：仅设置密码）
     - name: Fix WiFi (set password)
