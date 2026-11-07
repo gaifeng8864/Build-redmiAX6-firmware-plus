@@ -1,0 +1,93 @@
+name: Test Bypass atomic Xray config
+
+on:
+  pull_request:
+    paths:
+      - 'PATCH/bypass-sniff-v1/**'
+      - '.github/workflows/Test-Bypass-Atomic-Config.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  atomic-config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify shell and build injection hook
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_script='PATCH/bypass-sniff-v1/xray-atomic-generate.sh'
+          apply_script='PATCH/bypass-sniff-v1/apply.sh'
+          sh -n "$source_script"
+          bash -n "$apply_script"
+          grep -Fq 'install -D -m 0755 "$DIR/xray-atomic-generate.sh" "$PKG/root/usr/share/bypass/xray-atomic-generate.sh"' "$apply_script"
+          test "$(grep -Fc 'TMP="$TMPDIR/config.json"' "$source_script")" -eq 1
+          test "$(grep -Fc 'mktemp -d "${TARGET}.new.XXXXXX"' "$source_script")" -eq 1
+
+      - name: Test installed script with stub Lua and Xray
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_root="$(mktemp -d)"
+          trap 'rm -rf "$test_root"' EXIT
+          mkdir -p "$test_root/bin" "$test_root/pkg/root/usr/share/bypass" "$test_root/runtime"
+          install -D -m 0755 PATCH/bypass-sniff-v1/xray-atomic-generate.sh \
+            "$test_root/pkg/root/usr/share/bypass/xray-atomic-generate.sh"
+          target_script="$test_root/pkg/root/usr/share/bypass/xray-atomic-generate.sh"
+          cmp PATCH/bypass-sniff-v1/xray-atomic-generate.sh "$target_script"
+          sh -n "$target_script"
+
+          cat > "$test_root/bin/lua" <<'MOCK_LUA'
+          #!/bin/sh
+          [ "${SIMULATE_LUA_FAILURE:-0}" != 1 ] || exit 42
+          printf '%s\n' '{"log":{"loglevel":"warning"}}'
+          MOCK_LUA
+          cat > "$test_root/bin/xray" <<'MOCK_XRAY'
+          #!/bin/sh
+          [ "$1" = run ] && [ "$2" = -format ] && [ "$3" = json ] && [ "$4" = -c ] && [ "$6" = -test ] || exit 78
+          case "$5" in *.json) ;; *) echo 'unsupported config file extension' >&2; exit 79;; esac
+          [ "${SIMULATE_XRAY_FAILURE:-0}" != 1 ] || exit 43
+          grep -Fq '"loglevel":"warning"' "$5"
+          MOCK_XRAY
+          chmod +x "$test_root/bin/lua" "$test_root/bin/xray"
+          export PATH="$test_root/bin:$PATH"
+          generator="$test_root/generator.lua"
+          printf '%s\n' '-- mock generator' > "$generator"
+          target="$test_root/runtime/retcp.json"
+          printf 'ORIGINAL\n' > "$target"
+
+          run_case() {
+            sh "$target_script" "$generator" "$target" node tcp 1234 0 127.0.0.1
+          }
+          assert_clean() {
+            if find "$test_root/runtime" -mindepth 1 -maxdepth 1 -name 'retcp.json.new.*' | grep -q .; then
+              echo 'FAIL: temporary directory not removed' >&2
+              exit 1
+            fi
+          }
+
+          run_case
+          grep -Fq '"loglevel":"warning"' "$target"
+          assert_clean
+          printf 'ORIGINAL\n' > "$target"
+
+          if SIMULATE_LUA_FAILURE=1 run_case; then
+            echo 'FAIL: Lua failure was accepted' >&2
+            exit 1
+          fi
+          grep -Fxq 'ORIGINAL' "$target"
+          assert_clean
+
+          if SIMULATE_XRAY_FAILURE=1 run_case; then
+            echo 'FAIL: Xray failure was accepted' >&2
+            exit 1
+          fi
+          grep -Fxq 'ORIGINAL' "$target"
+          assert_clean
+          echo 'PASS: install, JSON filename, success, rollback and cleanup'
