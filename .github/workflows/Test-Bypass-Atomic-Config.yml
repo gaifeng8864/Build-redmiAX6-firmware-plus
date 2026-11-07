@@ -5,6 +5,8 @@ on:
     paths:
       - 'PATCH/bypass-sniff-v1/**'
       - '.github/workflows/Test-Bypass-Atomic-Config.yml'
+      - '.github/workflows/Build-LiBwrt-redmi_AX6-plus-New.yml'
+      - 'feeds.conf.default'
   workflow_dispatch:
 
 permissions:
@@ -91,3 +93,47 @@ jobs:
           grep -Fxq 'ORIGINAL' "$target"
           assert_clean
           echo 'PASS: install, JSON filename, success, rollback and cleanup'
+
+  live-upstream-compatibility:
+    name: Verify live kiddin9 Bypass feed patching
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout patch sources
+        uses: actions/checkout@v4
+
+      - name: Verify upstream feed pinned to production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fxq 'src-git kiddin9 https://github.com/kiddin9/op-packages.git' feeds.conf.default
+          grep -Fq 'pkg="openwrt/feeds/kiddin9/luci-app-bypass"' .github/workflows/Build-LiBwrt-redmi_AX6-plus-New.yml
+
+      - name: Clone live upstream feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch main --single-branch \
+            https://github.com/kiddin9/op-packages.git upstream-feed
+          echo "Upstream: $(git -C upstream-feed rev-parse HEAD)" | tee -a "$GITHUB_STEP_SUMMARY"
+          test -f upstream-feed/luci-app-bypass/Makefile
+
+      - name: Apply production DNS_DIR fix and guarded patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          pkg="upstream-feed/luci-app-bypass"
+          init="$pkg/root/etc/init.d/bypass"
+          test -f "$init"
+          grep -q '^DNS_DIR=' "$init"
+          sed -i 's|^DNS_DIR=.*|DNS_DIR=$DNSMASQ_CONF_DIR/dnsmasq.by|' "$init"
+          echo '### Live Bypass feed compatibility' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Applying guarded patch to freshly cloned upstream source.' >> "$GITHUB_STEP_SUMMARY"
+          bash PATCH/bypass-sniff-v1/apply.sh "$pkg"
+          installed="$pkg/root/usr/share/bypass/xray-atomic-generate.sh"
+          test -s "$installed"
+          test -x "$installed"
+          sh -n "$installed"
+          cmp -s PATCH/bypass-sniff-v1/xray-atomic-generate.sh "$installed"
+          grep -Fq 'TMP="$TMPDIR/config.json"' "$installed"
+          echo 'PASS: actual upstream feed accepted guarded Bypass patch' | tee -a "$GITHUB_STEP_SUMMARY"
