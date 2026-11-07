@@ -11,9 +11,11 @@ shift 2
 [ -d "${TARGET%/*}" ] || exit 1
 [ ! -L "$TARGET" ] || exit 1
 
-TMP=$(mktemp "${TARGET}.new.XXXXXX") || exit 1
-LOG="${TMP}.log"
-trap 'rm -f "$TMP" "$LOG"' 0
+TMPDIR=$(mktemp -d "${TARGET}.new.XXXXXX") || exit 1
+TMP="$TMPDIR/config.json"
+LOG="$TMPDIR/validation.log"
+trap 'rm -rf "$TMPDIR"' 0
+trap 'exit 1' 1 2 3 15
 
 if ! lua "$GEN" "$@" > "$TMP"; then
     echo "FAIL: Lua generation" >&2
